@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Beengoo <ndftua@gmail.com>
+Date: Sun, 4 Jan 2026 01:54:09 +0200
+Subject: [PATCH] Allow non-folia plugins to load
+
+
+diff --git a/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginProviderFactory.java b/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginProviderFactory.java
+index 6369b13e1fcdbdb25dd9d6e4d3bffdedbee4f739..7bef09ecfca725fbfe365053a3c03a1cba4c91c4 100644
+--- a/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginProviderFactory.java
++++ b/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginProviderFactory.java
+@@ -1,6 +1,7 @@
+ package io.papermc.paper.plugin.provider.type.paper;
+ 
+ import com.destroystokyo.paper.utils.PaperPluginLogger;
++import com.mojang.logging.LogUtils;
+ import io.papermc.paper.plugin.bootstrap.PluginProviderContext;
+ import io.papermc.paper.plugin.bootstrap.PluginProviderContextImpl;
+ import io.papermc.paper.plugin.entrypoint.classloader.PaperPluginClassLoader;
+@@ -26,7 +27,9 @@ class PaperPluginProviderFactory implements PluginTypeFactory<PaperPluginParent,
+     public PaperPluginParent build(JarFile file, PaperPluginMeta configuration, Path source) {
+         // Folia start - block plugins not marked as supported
+         if (!configuration.isFoliaSupported()) {
+-            throw new RuntimeException("Could not load plugin '" + configuration.getDisplayName() + "' as it is not marked as supporting Folia!");
++            // Folia start - Allow non-folia plugins to load
++            LogUtils.getLogger().warn("Plugin {} is not marked as Folia supported, but trying to load it anyway.", configuration.getDisplayName());
++            // Folia end - Allow non-folia plugins to load
+         }
+         // Folia end - block plugins not marked as supported
+         Logger jul = PaperPluginLogger.getLogger(configuration);
+diff --git a/src/main/java/io/papermc/paper/plugin/provider/type/spigot/SpigotPluginProviderFactory.java b/src/main/java/io/papermc/paper/plugin/provider/type/spigot/SpigotPluginProviderFactory.java
+index 335058589eeba934105bea31a0c3aea2293a5597..1333b63dcd4d138a98f56a537d18986c61ba21b1 100644
+--- a/src/main/java/io/papermc/paper/plugin/provider/type/spigot/SpigotPluginProviderFactory.java
++++ b/src/main/java/io/papermc/paper/plugin/provider/type/spigot/SpigotPluginProviderFactory.java
+@@ -1,6 +1,7 @@
+ package io.papermc.paper.plugin.provider.type.spigot;
+ 
+ import com.destroystokyo.paper.utils.PaperPluginLogger;
++import com.mojang.logging.LogUtils;
+ import io.papermc.paper.plugin.bootstrap.PluginProviderContextImpl;
+ import io.papermc.paper.plugin.entrypoint.classloader.BytecodeModifyingURLClassLoader;
+ import io.papermc.paper.plugin.entrypoint.classloader.PaperSimplePluginClassLoader;
+@@ -37,7 +38,9 @@ class SpigotPluginProviderFactory implements PluginTypeFactory<SpigotPluginProvi
+     public SpigotPluginProvider build(JarFile file, PluginDescriptionFile configuration, Path source) throws InvalidDescriptionException {
+         // Folia start - block plugins not marked as supported
+         if (!configuration.isFoliaSupported()) {
+-            throw new RuntimeException("Could not load plugin '" + configuration.getDisplayName() + "' as it is not marked as supporting Folia!");
++            // Folia start - Allow non-folia plugins to load
++            LogUtils.getLogger().warn("Plugin {} is not marked as Folia supported, but trying to load it anyway.", configuration.getDisplayName());
++            // Folia end - Allow non-folia plugins to load
+         }
+         // Folia end - block plugins not marked as supported
+         // Copied from SimplePluginManager#loadPlugins
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+index 936b812843dfc1b58e4fb3c41a0f9683258a1a98..acf2f2b3a961938609e7f69bed84559c62f21d1e 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+@@ -374,7 +374,9 @@ public final class CraftMagicNumbers implements UnsafeValues {
+ 
+         // Folia start - block plugins not marked as supported
+         if (!descriptionFile.isFoliaSupported()) {
+-            throw new InvalidPluginException("Plugin " + descriptionFile.getFullName() + " is not marked as supporting regionised multithreading");
++            // Folia start - Allow non-folia plugins to load
++            LogUtils.getLogger().warn("Plugin {} is not marked as Folia supported, but trying to load it anyway.", descriptionFile.getDisplayName());
++            // Folia end - Allow non-folia plugins to load
+         }
+         // Folia end - block plugins not marked as supported
+ 

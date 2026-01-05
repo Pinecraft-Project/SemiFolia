@@ -10332,7 +10332,7 @@ index eb06d8f012684845146429832e977e6c1ddcd62b..3d8290b952e4341211ef8e669372bf7e
          // CraftBukkit end
      }
 diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
-index ab8893163ac85971a470e4a4d6fa76bd174e2bae..47e1d65f0c2fb6535413bf66e2b40516ff9f7484 100644
+index ab8893163ac85971a470e4a4d6fa76bd174e2bae..b0a499b546790b0e722fd0cc6a1726ecd40e995f 100644
 --- a/net/minecraft/server/level/ChunkMap.java
 +++ b/net/minecraft/server/level/ChunkMap.java
 @@ -138,8 +138,8 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
@@ -10524,7 +10524,7 @@ index ab8893163ac85971a470e4a4d6fa76bd174e2bae..47e1d65f0c2fb6535413bf66e2b40516
              if (((ca.spottedleaf.moonrise.patches.entity_tracker.EntityTrackerTrackedEntity)tracker).moonrise$hasPlayers()
                  || ((ca.spottedleaf.moonrise.patches.chunk_system.entity.ChunkSystemEntity)entity).moonrise$getChunkStatus().isOrAfter(FullChunkStatus.ENTITY_TICKING)) {
                  tracker.serverEntity.sendChanges();
-@@ -1071,67 +1072,37 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+@@ -1071,67 +1072,55 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
          // Paper end - optimise entity tracker
          // Paper - rewrite chunk system
  
@@ -10593,12 +10593,29 @@ index ab8893163ac85971a470e4a4d6fa76bd174e2bae..47e1d65f0c2fb6535413bf66e2b40516
 -            if (trackedEntity.seenBy.contains(player.connection)) {
 -                action.accept(trackedEntity.entity);
 -            }
--        }
-+        throw new UnsupportedOperationException(); // Folia - region threading
++        // Folia start - Iterate only entities in player's region
++        var level = player.level();
++        var regionizer = level.regioniser;
++
++        var region = regionizer.getRegionAtUnsynchronised(
++                player.chunkPosition().x,
++                player.chunkPosition().z
++        );
++
++        if (region == null) {
++            return;
+         }
++
++        region.getData().world.getEntities().getAll().forEach(entity -> {
++            if (entity != player) {
++                action.accept(entity);
++            }
++        });
++        // Folia end - Iterate only entities in player's region
      }
  
      public void resendBiomesForChunks(List<ChunkAccess> chunks) {
-@@ -1377,8 +1348,13 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+@@ -1377,8 +1366,13 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
                  }
                  flag = flag && this.entity.broadcastToPlayer(player) && ChunkMap.this.isChunkTracked(player, this.entity.chunkPosition().x, this.entity.chunkPosition().z);
                  // Paper end - Configurable entity tracking range by Y

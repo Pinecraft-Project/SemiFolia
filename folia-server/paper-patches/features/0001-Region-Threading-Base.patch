@@ -715,38 +715,54 @@ index d3b3a8baca013909fa9c6204d964d7d7efeb2719..fb7c6621e2805f4339c255f6c2e02c55
      public @NotNull List<String> getProvidedPlugins() {
          return this.provides;
 diff --git a/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginProviderFactory.java b/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginProviderFactory.java
-index 0a27b468560ccf4b9588cd12d50c02e442f3024f..6369b13e1fcdbdb25dd9d6e4d3bffdedbee4f739 100644
+index 0a27b468560ccf4b9588cd12d50c02e442f3024f..8e14b5e05dd9291fc7a7d640ad26d560bd330097 100644
 --- a/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginProviderFactory.java
 +++ b/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginProviderFactory.java
-@@ -24,6 +24,11 @@ class PaperPluginProviderFactory implements PluginTypeFactory<PaperPluginParent,
+@@ -1,6 +1,7 @@
+ package io.papermc.paper.plugin.provider.type.paper;
+ 
+ import com.destroystokyo.paper.utils.PaperPluginLogger;
++import com.mojang.logging.LogUtils;
+ import io.papermc.paper.plugin.bootstrap.PluginProviderContext;
+ import io.papermc.paper.plugin.bootstrap.PluginProviderContextImpl;
+ import io.papermc.paper.plugin.entrypoint.classloader.PaperPluginClassLoader;
+@@ -24,6 +25,11 @@ class PaperPluginProviderFactory implements PluginTypeFactory<PaperPluginParent,
  
      @Override
      public PaperPluginParent build(JarFile file, PaperPluginMeta configuration, Path source) {
-+        // Folia start - block plugins not marked as supported
++        // Folia start - Allow non-folia plugins to load
 +        if (!configuration.isFoliaSupported()) {
-+            throw new RuntimeException("Could not load plugin '" + configuration.getDisplayName() + "' as it is not marked as supporting Folia!");
++            LogUtils.getLogger().warn("Plugin {} is not marked as Folia supported.", configuration.getDisplayName());
 +        }
-+        // Folia end - block plugins not marked as supported
++        // Folia end - Allow non-folia plugins to load
          Logger jul = PaperPluginLogger.getLogger(configuration);
          ComponentLogger logger = ComponentLogger.logger(jul.getName());
          PluginProviderContext context = PluginProviderContextImpl.create(configuration, logger, source);
 diff --git a/src/main/java/io/papermc/paper/plugin/provider/type/spigot/SpigotPluginProviderFactory.java b/src/main/java/io/papermc/paper/plugin/provider/type/spigot/SpigotPluginProviderFactory.java
-index 9edf79dffd2836b40d41da4437c18d6145853f89..335058589eeba934105bea31a0c3aea2293a5597 100644
+index 9edf79dffd2836b40d41da4437c18d6145853f89..dc452226aefa872fb9f69136aec99c46ce5f11ea 100644
 --- a/src/main/java/io/papermc/paper/plugin/provider/type/spigot/SpigotPluginProviderFactory.java
 +++ b/src/main/java/io/papermc/paper/plugin/provider/type/spigot/SpigotPluginProviderFactory.java
-@@ -35,6 +35,11 @@ class SpigotPluginProviderFactory implements PluginTypeFactory<SpigotPluginProvi
+@@ -1,6 +1,7 @@
+ package io.papermc.paper.plugin.provider.type.spigot;
+ 
+ import com.destroystokyo.paper.utils.PaperPluginLogger;
++import com.mojang.logging.LogUtils;
+ import io.papermc.paper.plugin.bootstrap.PluginProviderContextImpl;
+ import io.papermc.paper.plugin.entrypoint.classloader.BytecodeModifyingURLClassLoader;
+ import io.papermc.paper.plugin.entrypoint.classloader.PaperSimplePluginClassLoader;
+@@ -35,6 +36,11 @@ class SpigotPluginProviderFactory implements PluginTypeFactory<SpigotPluginProvi
  
      @Override
      public SpigotPluginProvider build(JarFile file, PluginDescriptionFile configuration, Path source) throws InvalidDescriptionException {
-+        // Folia start - block plugins not marked as supported
++        // Folia start - Allow non-folia plugins to load
 +        if (!configuration.isFoliaSupported()) {
-+            throw new RuntimeException("Could not load plugin '" + configuration.getDisplayName() + "' as it is not marked as supporting Folia!");
++            LogUtils.getLogger().warn("Plugin {} is not marked as Folia supported.", configuration.getDisplayName());
 +        }
-+        // Folia end - block plugins not marked as supported
++        // Folia end - Allow non-folia plugins to load
          // Copied from SimplePluginManager#loadPlugins
          // Spigot doesn't validate the name when the config is created, and instead when the plugin is loaded.
          // Paper plugin configuration will do these checks in config serializer instead of when this is created.
-@@ -81,4 +86,3 @@ class SpigotPluginProviderFactory implements PluginTypeFactory<SpigotPluginProvi
+@@ -81,4 +87,3 @@ class SpigotPluginProviderFactory implements PluginTypeFactory<SpigotPluginProvi
          return descriptionFile;
      }
  }
@@ -3875,18 +3891,18 @@ index 6d8a050a17dd9df9d8b49787e3821244e8e2b545..ab76c7f9bb0a4980a07a4d08c0d3ecad
          net.minecraft.world.scores.Scoreboard newBoard = scoreboard.getHandle();
          if (oldBoard == newBoard) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
-index cfa4c67e80a50c9556f66529910c2783d3350b54..936b812843dfc1b58e4fb3c41a0f9683258a1a98 100644
+index cfa4c67e80a50c9556f66529910c2783d3350b54..42652592f2d43cea3b936735a36a8a2787acee1f 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
 @@ -372,6 +372,12 @@ public final class CraftMagicNumbers implements UnsafeValues {
              throw new InvalidPluginException("Unsupported API version " + descriptionFile.getAPIVersion());
          }
  
-+        // Folia start - block plugins not marked as supported
++        // Folia start - Allow non-folia plugins to load
 +        if (!descriptionFile.isFoliaSupported()) {
-+            throw new InvalidPluginException("Plugin " + descriptionFile.getFullName() + " is not marked as supporting regionised multithreading");
++            LogUtils.getLogger().warn("Plugin {} is not marked as Folia supported.", descriptionFile.getDisplayName());
 +        }
-+        // Folia end - block plugins not marked as supported
++        // Folia end - Allow non-folia plugins to load
 +
          if (toCheck.isOlderThan(minimumVersion)) {
              // Older than supported

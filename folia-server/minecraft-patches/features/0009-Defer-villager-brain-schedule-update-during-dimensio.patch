@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Beengoo <ndftua@gmail.com>
+Date: Sat, 7 Feb 2026 15:24:55 +0200
+Subject: [PATCH] Defer villager brain schedule update during dimension
+ teleport
+
+
+diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
+index 8616a8f5b720eac2bb5b3d78a3b69d40bb0b5547..1286f53066a42fda95f8901baefc01a4fad182e5 100644
+--- a/net/minecraft/world/entity/npc/villager/Villager.java
++++ b/net/minecraft/world/entity/npc/villager/Villager.java
+@@ -116,6 +116,9 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+     private int updateMerchantTimer;
+     private boolean increaseProfessionLevelOnUpdate;
+     private @Nullable Player lastTradedPlayer;
++    // SemiFolia start - fix dimension teleport world mismatch
++    private transient boolean needsScheduleUpdate = false;
++    // SemiFolia end
+     private boolean chasing;
+     private int foodLevel = 0;
+     private final GossipContainer gossips = new GossipContainer();
+@@ -229,17 +232,17 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+         } else {
+             villagerBrain.setSchedule(EnvironmentAttributes.VILLAGER_ACTIVITY);
+             villagerBrain.addActivityWithConditions(
+-                Activity.WORK,
+-                VillagerGoalPackages.getWorkPackage(holder, 0.5F),
+-                ImmutableSet.of(Pair.of(MemoryModuleType.JOB_SITE, MemoryStatus.VALUE_PRESENT))
++                    Activity.WORK,
++                    VillagerGoalPackages.getWorkPackage(holder, 0.5F),
++                    ImmutableSet.of(Pair.of(MemoryModuleType.JOB_SITE, MemoryStatus.VALUE_PRESENT))
+             );
+         }
+ 
+         villagerBrain.addActivity(Activity.CORE, VillagerGoalPackages.getCorePackage(holder, 0.5F));
+         villagerBrain.addActivityWithConditions(
+-            Activity.MEET,
+-            VillagerGoalPackages.getMeetPackage(holder, 0.5F),
+-            ImmutableSet.of(Pair.of(MemoryModuleType.MEETING_POINT, MemoryStatus.VALUE_PRESENT))
++                Activity.MEET,
++                VillagerGoalPackages.getMeetPackage(holder, 0.5F),
++                ImmutableSet.of(Pair.of(MemoryModuleType.MEETING_POINT, MemoryStatus.VALUE_PRESENT))
+         );
+         villagerBrain.addActivity(Activity.REST, VillagerGoalPackages.getRestPackage(holder, 0.5F));
+         villagerBrain.addActivity(Activity.IDLE, VillagerGoalPackages.getIdlePackage(holder, 0.5F));
+@@ -250,7 +253,18 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+         villagerBrain.setCoreActivities(ImmutableSet.of(Activity.CORE));
+         villagerBrain.setDefaultActivity(Activity.IDLE);
+         villagerBrain.setActiveActivityIfPossible(Activity.IDLE);
+-        villagerBrain.updateActivityFromSchedule(this.level().environmentAttributes(), this.level().getLevelData().getGameTime(), this.position()); // Folia - region threading - not in the world yet
++
++        // SemiFolia start - catch world mismatch during dimension teleport
++        try {
++            villagerBrain.updateActivityFromSchedule(this.level().environmentAttributes(), this.level().getLevelData().getGameTime(), this.position());
++        } catch (IllegalStateException e) {
++            if (e.getMessage() != null && e.getMessage().contains("World mismatch")) {
++                this.needsScheduleUpdate = true;
++            } else {
++                throw e; // Re-throw if it's a different error
++            }
++        }
++        // SemiFolia end
+     }
+ 
+     @Override
+@@ -338,6 +352,23 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+ 
+     @Override
+     public void tick() {
++        // SemiFolia start - perform deferred brain schedule update
++        if (this.needsScheduleUpdate) {
++            this.needsScheduleUpdate = false;
++            try {
++                this.getBrain().updateActivityFromSchedule(
++                        this.level().environmentAttributes(),
++                        this.level().getLevelData().getGameTime(),
++                        this.position()
++                );
++            } catch (Exception e) {
++                LOGGER.warn(
++                        "Failed to update villager brain schedule after dimension teleport at {}: {}",
++                        this.position(), e.getMessage()
++                );
++            }
++        }
++        // SemiFolia end
+         super.tick();
+         if (this.getUnhappyCounter() > 0) {
+             this.setUnhappyCounter(this.getUnhappyCounter() - 1);
